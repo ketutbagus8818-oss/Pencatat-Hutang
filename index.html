@@ -3,153 +3,401 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pencatat Hutang Offline</title>
+  <title>Buku Hutang DOPU</title>
   <link rel="manifest" href="manifest.json">
   <style>
-    body { font-family: -apple-system, sans-serif; background: #f0fdfc; padding: 16px; margin: 0; color: #0f4c47; }
-    .app-container { max-width: 480px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(18, 121, 115, 0.15); }
-    h2 { text-align: center; color: #127973; margin-top: 0; }
+    :root { --primary: #00897B; --bg: #f8fafc; --card: #ffffff; --text: #0f172a; --red: #ef4444; --green: #10b981; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 0; color: var(--text); }
+    .container { max-width: 500px; margin: 0 auto; background: var(--card); min-height: 100vh; position: relative; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
+    
+    /* Headers & Navigation */
+    .header { background: var(--primary); color: white; padding: 16px; display: flex; align-items: center; position: sticky; top: 0; z-index: 10; }
+    .header h2 { margin: 0; flex: 1; font-size: 18px; }
+    .btn-back { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 12px; border-radius: 8px; margin-right: 12px; font-weight: bold; display: none; cursor: pointer; }
+    
+    /* Layouts */
+    .view-section { padding: 16px; display: none; }
+    .view-active { display: block; }
+    
+    /* Cards & Lists */
+    .card { background: #fff; border: 1px solid #e2e8f0; padding: 16px; border-radius: 12px; margin-bottom: 12px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+    .card:hover { border-color: var(--primary); }
+    .card-title { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+    .card-sub { font-size: 13px; color: #64748b; }
+    .amount-red { color: var(--red); font-weight: bold; }
+    .amount-green { color: var(--green); font-weight: bold; }
+    
+    /* Profile Detail Header */
+    .profile-box { text-align: center; padding: 20px; background: #e0f2f1; border-radius: 16px; margin-bottom: 20px; }
+    .profile-box h1 { margin: 0 0 5px 0; font-size: 24px; color: #004d40; }
+    .profile-total { font-size: 28px; font-weight: 900; color: var(--red); margin: 10px 0; }
+    
+    /* Transaction List */
+    .trx-item { border-bottom: 1px solid #f1f5f9; padding: 12px 0; display: flex; justify-content: space-between; }
+    .trx-info { flex: 1; }
+    .trx-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .btn-sm { padding: 4px 10px; font-size: 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    .btn-edit { background: #fef08a; color: #854d0e; }
+    .btn-del { background: #fee2e2; color: #991b1b; }
+    
+    /* Buttons */
+    .btn-primary { background: var(--primary); color: white; width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+    .btn-wa { background: #25D366; color: white; width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 8px; }
+    .grid-btn { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .btn-order { background: var(--red); color: white; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+    .btn-pay { background: var(--green); color: white; padding: 12px; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; }
+    
+    /* Modal / Form */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 50; justify-content: center; align-items: center; }
+    .modal-content { background: white; padding: 20px; width: 90%; max-width: 400px; border-radius: 16px; }
+    .modal-active { display: flex; }
     .form-group { margin-bottom: 12px; }
-    label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 4px; }
-    input, textarea { width: 100%; padding: 10px; border: 2px solid #b2f2ed; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
-    button { width: 100%; padding: 14px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
-    .btn-simpan { background: #127973; color: white; }
-    .btn-sync { background: #fbbf24; color: #000; margin-top: 15px; }
-    .status-badge { text-align: center; padding: 8px; margin-top: 15px; border-radius: 8px; font-weight: bold; font-size: 14px; }
-    .status-offline { background: #fee2e2; color: #b91c1c; }
-    .status-online { background: #dcfce7; color: #15803d; }
+    .form-group label { display: block; margin-bottom: 5px; font-size: 14px; font-weight: bold; }
+    .form-group input { width: 100%; padding: 10px; border: 2px solid #e2e8f0; border-radius: 8px; box-sizing: border-box; font-size: 15px; }
+    .btn-cancel { background: #e2e8f0; color: #475569; width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; margin-top: 8px; }
+    
+    .status-bar { text-align: center; padding: 8px; font-size: 13px; font-weight: bold; background: #fbbf24; cursor: pointer; }
   </style>
 </head>
 <body>
 
-<div class="app-container">
-  <h2>Catat Hutang</h2>
-  
-  <div class="form-group">
-    <label>Nama Penghutang</label>
-    <input type="text" id="nama" placeholder="Contoh: Budi" required>
+<div class="container">
+  <div class="header">
+    <button class="btn-back" id="btnBack" onclick="goHome()">Kembali</button>
+    <h2 id="headerTitle">Daftar Pelanggan</h2>
   </div>
   
-  <div class="form-group">
-    <label>Jumlah Hutang (Rp)</label>
-    <input type="number" id="jumlah" placeholder="Contoh: 50000" required>
+  <div class="status-bar" onclick="syncData()" id="syncStatus">☁️ Klik untuk Sinkronisasi ke Sheet</div>
+
+  <!-- VIEW 1: DASHBOARD PELANGGAN -->
+  <div id="view-home" class="view-section view-active">
+    <button class="btn-primary" onclick="openModal('modalCust')">+ Tambah Pelanggan Baru</button>
+    <div id="customerList" style="margin-top: 15px;"></div>
   </div>
 
-  <div class="form-group">
-    <label>Keterangan</label>
-    <textarea id="keterangan" rows="2" placeholder="Contoh: Pulsa Telkomsel 50k"></textarea>
-  </div>
+  <!-- VIEW 2: DETAIL PROFIL & TRANSAKSI -->
+  <div id="view-detail" class="view-section">
+    <div class="profile-box">
+      <h1 id="detName">Nama</h1>
+      <div class="card-sub" id="detPhone">0812xxx</div>
+      <div class="profile-total" id="detTotal">Rp 0</div>
+    </div>
 
-  <button class="btn-simpan" onclick="simpanData()">SIMPAN DATA</button>
-  
-  <div id="statusJaringan" class="status-badge status-online">Status: Online</div>
-  <div id="infoAntrean" style="text-align: center; font-size: 13px; margin-top: 10px; font-weight: bold; color: #e63946;">0 data menunggu sinkronisasi</div>
-  
-  <button class="btn-sync" onclick="sinkronisasiData()">SINKRONKAN KE GOOGLE SHEETS 🔄</button>
+    <button class="btn-wa" onclick="sendWA()">💬 Ingatkan via WhatsApp</button>
+
+    <div class="grid-btn">
+      <button class="btn-order" onclick="openTrxModal('order')">+ Tambah Hutang</button>
+      <button class="btn-pay" onclick="openTrxModal('payment')">+ Pembayaran</button>
+    </div>
+
+    <h3 style="margin-top: 20px; margin-bottom: 10px; border-bottom: 2px solid #e2e8f0; padding-bottom: 5px;">Riwayat Transaksi</h3>
+    <div id="trxList"></div>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH PELANGGAN -->
+<div id="modalCust" class="modal">
+  <div class="modal-content">
+    <h3>Data Pelanggan Baru</h3>
+    <div class="form-group">
+      <label>Nama Pelanggan</label>
+      <input type="text" id="inpCustName" placeholder="Contoh: Budi Cell">
+    </div>
+    <div class="form-group">
+      <label>Nomor WhatsApp</label>
+      <input type="number" id="inpCustPhone" placeholder="Contoh: 08123456789">
+    </div>
+    <button class="btn-primary" onclick="saveCustomer()">Simpan</button>
+    <button class="btn-cancel" onclick="closeModal('modalCust')">Batal</button>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH/EDIT TRANSAKSI -->
+<div id="modalTrx" class="modal">
+  <div class="modal-content">
+    <h3 id="trxModalTitle">Input Data</h3>
+    <input type="hidden" id="inpTrxId">
+    <input type="hidden" id="inpTrxType">
+    <div class="form-group">
+      <label>Nominal (Rp)</label>
+      <input type="number" id="inpTrxAmount" placeholder="Contoh: 50000">
+    </div>
+    <div class="form-group">
+      <label>Keterangan</label>
+      <input type="text" id="inpTrxDesc" placeholder="Contoh: Token PLN 50">
+    </div>
+    <button class="btn-primary" onclick="saveTransaction()">Simpan Transaksi</button>
+    <button class="btn-cancel" onclick="closeModal('modalTrx')">Batal</button>
+  </div>
 </div>
 
 <script>
-  // GANTI URL INI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA
-  const GAS_URL = "URL_GAS_ANDA_DISINI";
+  // ==========================================
+  // KONFIGURASI APLIKASI
+  // ==========================================
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbzoaM8um4lj-Ta46t54NTzqUtkp7FJy5CDWF6TqR-4-3IoO_kDl5BoclCQB6AbWc5JaXw/exec"; 
+  
+  // ==========================================
+  // DATABASE LOKAL (Offline First)
+  // ==========================================
+  let db = {
+    customers: JSON.parse(localStorage.getItem('dopu_cust')) || [],
+    transactions: JSON.parse(localStorage.getItem('dopu_trx')) || []
+  };
+  let currentCustId = null;
 
-  // Mendaftarkan Service Worker agar bisa diinstal & berjalan offline
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(() => console.log("Service Worker Terdaftar"));
+  function saveDB() {
+    localStorage.setItem('dopu_cust', JSON.stringify(db.customers));
+    localStorage.setItem('dopu_trx', JSON.stringify(db.transactions));
   }
 
-  // Pantau Status Jaringan
-  window.addEventListener('online', updateStatus);
-  window.addEventListener('offline', updateStatus);
-
-  function updateStatus() {
-    const statusEl = document.getElementById('statusJaringan');
-    if (navigator.onLine) {
-      statusEl.textContent = 'Status: Online';
-      statusEl.className = 'status-badge status-online';
-      updateInfoAntrean();
-    } else {
-      statusEl.textContent = 'Status: Offline (Data akan disimpan di HP)';
-      statusEl.className = 'status-badge status-offline';
-    }
+  function rupiah(angka) {
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(angka);
   }
 
-  // Menyimpan data secara lokal (Offline)
-  function simpanData() {
-    const nama = document.getElementById('nama').value;
-    const jumlah = document.getElementById('jumlah').value;
-    const keterangan = document.getElementById('keterangan').value;
+  // ==========================================
+  // NAVIGASI & TAMPILAN
+  // ==========================================
+  function goHome() {
+    document.getElementById('view-detail').classList.remove('view-active');
+    document.getElementById('view-home').classList.add('view-active');
+    document.getElementById('btnBack').style.display = 'none';
+    document.getElementById('headerTitle').textContent = 'Daftar Pelanggan';
+    currentCustId = null;
+    renderHome();
+  }
 
-    if (!nama || !jumlah) return alert('Nama dan Jumlah wajib diisi!');
+  function goDetail(id) {
+    currentCustId = id;
+    document.getElementById('view-home').classList.remove('view-active');
+    document.getElementById('view-detail').classList.add('view-active');
+    document.getElementById('btnBack').style.display = 'block';
+    document.getElementById('headerTitle').textContent = 'Profil Pelanggan';
+    renderDetail();
+  }
 
-    const dataBaru = {
-      id: "HUTANG-" + new Date().getTime(),
-      tanggal: new Date().toLocaleString('id-ID'),
-      nama: nama,
-      jumlah: jumlah,
-      keterangan: keterangan
-    };
+  function openModal(id) { document.getElementById(id).classList.add('modal-active'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('modal-active'); }
 
-    let antreanData = JSON.parse(localStorage.getItem('antreanHutang')) || [];
-    antreanData.push(dataBaru);
-    localStorage.setItem('antreanHutang', JSON.stringify(antreanData));
+  // ==========================================
+  // LOGIKA PELANGGAN
+  // ==========================================
+  function getCustomerTotal(id) {
+    let trxs = db.transactions.filter(t => t.cust_id === id);
+    let hutang = trxs.filter(t => t.type === 'order').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    let bayar = trxs.filter(t => t.type === 'payment').reduce((sum, t) => sum + parseFloat(t.amount), 0);
+    return hutang - bayar;
+  }
 
-    // Kosongkan form
-    document.getElementById('nama').value = '';
-    document.getElementById('jumlah').value = '';
-    document.getElementById('keterangan').value = '';
+  function renderHome() {
+    const list = document.getElementById('customerList');
+    list.innerHTML = '';
     
-    alert('Data berhasil disimpan secara lokal!');
-    updateInfoAntrean();
-  }
-
-  function updateInfoAntrean() {
-    let antreanData = JSON.parse(localStorage.getItem('antreanHutang')) || [];
-    document.getElementById('infoAntrean').textContent = `${antreanData.length} data menunggu sinkronisasi`;
-  }
-
-  // Mengirim data ke Google Sheets saat Online
-  async function sinkronisasiData() {
-    if (!navigator.onLine) {
-      alert("Anda sedang offline. Tunggu hingga koneksi internet kembali.");
+    if (db.customers.length === 0) {
+      list.innerHTML = '<div style="text-align:center; padding:20px; color:#64748b;">Belum ada data pelanggan.</div>';
       return;
     }
 
-    let antreanData = JSON.parse(localStorage.getItem('antreanHutang')) || [];
-    if (antreanData.length === 0) {
-      alert("Tidak ada data yang perlu disinkronisasi.");
-      return;
+    db.customers.forEach(c => {
+      let total = getCustomerTotal(c.id);
+      let colorClass = total > 0 ? 'amount-red' : 'amount-green';
+      
+      list.innerHTML += `
+        <div class="card" onclick="goDetail('${c.id}')">
+          <div>
+            <div class="card-title">${c.name}</div>
+            <div class="card-sub">${c.phone}</div>
+          </div>
+          <div class="${colorClass}">${rupiah(total)}</div>
+        </div>
+      `;
+    });
+  }
+
+  function saveCustomer() {
+    let name = document.getElementById('inpCustName').value;
+    let phone = document.getElementById('inpCustPhone').value;
+    if(!name || !phone) return alert("Nama dan Nomor WA wajib diisi!");
+
+    db.customers.push({
+      id: "CUST-" + Date.now(),
+      name: name,
+      phone: phone
+    });
+    
+    saveDB();
+    closeModal('modalCust');
+    document.getElementById('inpCustName').value = '';
+    document.getElementById('inpCustPhone').value = '';
+    renderHome();
+  }
+
+  // ==========================================
+  // LOGIKA TRANSAKSI (HUTANG & BAYAR)
+  // ==========================================
+  function renderDetail() {
+    let cust = db.customers.find(c => c.id === currentCustId);
+    if(!cust) return goHome();
+
+    let total = getCustomerTotal(cust.id);
+    document.getElementById('detName').textContent = cust.name;
+    document.getElementById('detPhone').textContent = cust.phone;
+    document.getElementById('detTotal').textContent = rupiah(total);
+
+    const list = document.getElementById('trxList');
+    list.innerHTML = '';
+    
+    let trxs = db.transactions.filter(t => t.cust_id === currentCustId).reverse();
+    
+    if(trxs.length === 0) {
+      list.innerHTML = '<div style="text-align:center; color:#64748b; margin-top:20px;">Belum ada riwayat transaksi.</div>';
     }
 
-    const btn = document.querySelector('.btn-sync');
-    btn.textContent = "MENGIRIM DATA...";
+    trxs.forEach(t => {
+      let isHutang = t.type === 'order';
+      let title = isHutang ? '🔴 Tambah Hutang' : '🟢 Pembayaran';
+      let color = isHutang ? 'amount-red' : 'amount-green';
+      let sign = isHutang ? '+' : '-';
+
+      list.innerHTML += `
+        <div class="trx-item">
+          <div class="trx-info">
+            <div style="font-size:12px; color:#64748b;">${t.date} | ${title}</div>
+            <div style="font-weight:bold; margin: 4px 0;">${t.desc}</div>
+            <div class="trx-actions">
+              <button class="btn-sm btn-edit" onclick="editTrx('${t.id}')">Edit</button>
+              <button class="btn-sm btn-del" onclick="delTrx('${t.id}')">Hapus</button>
+            </div>
+          </div>
+          <div class="${color}">${sign} ${rupiah(t.amount)}</div>
+        </div>
+      `;
+    });
+  }
+
+  function openTrxModal(type, trxId = null) {
+    document.getElementById('inpTrxType').value = type;
+    document.getElementById('inpTrxId').value = trxId || '';
+    
+    if (trxId) {
+      let trx = db.transactions.find(t => t.id === trxId);
+      document.getElementById('trxModalTitle').textContent = "Edit Data";
+      document.getElementById('inpTrxAmount').value = trx.amount;
+      document.getElementById('inpTrxDesc').value = trx.desc;
+    } else {
+      document.getElementById('trxModalTitle').textContent = type === 'order' ? "Catat Hutang Baru" : "Catat Pembayaran";
+      document.getElementById('inpTrxAmount').value = '';
+      document.getElementById('inpTrxDesc').value = '';
+    }
+    
+    openModal('modalTrx');
+  }
+
+  function saveTransaction() {
+    let id = document.getElementById('inpTrxId').value;
+    let type = document.getElementById('inpTrxType').value;
+    let amount = document.getElementById('inpTrxAmount').value;
+    let desc = document.getElementById('inpTrxDesc').value;
+
+    if(!amount || !desc) return alert("Nominal dan Keterangan wajib diisi!");
+
+    if (id) {
+      // Mode Edit
+      let index = db.transactions.findIndex(t => t.id === id);
+      db.transactions[index].amount = amount;
+      db.transactions[index].desc = desc;
+    } else {
+      // Mode Baru
+      db.transactions.push({
+        id: "TRX-" + Date.now(),
+        cust_id: currentCustId,
+        date: new Date().toLocaleString('id-ID'),
+        type: type,
+        amount: amount,
+        desc: desc
+      });
+    }
+
+    saveDB();
+    closeModal('modalTrx');
+    renderDetail();
+  }
+
+  function delTrx(id) {
+    if(confirm("Yakin ingin menghapus data ini?")) {
+      db.transactions = db.transactions.filter(t => t.id !== id);
+      saveDB();
+      renderDetail();
+    }
+  }
+
+  function editTrx(id) {
+    let trx = db.transactions.find(t => t.id === id);
+    openTrxModal(trx.type, id);
+  }
+
+  // ==========================================
+  // FITUR WHATSAPP PENGINGAT
+  // ==========================================
+  function sendWA() {
+    let cust = db.customers.find(c => c.id === currentCustId);
+    let total = getCustomerTotal(cust.id);
+    
+    if(total <= 0) return alert("Pelanggan ini tidak memiliki tagihan hutang.");
+
+    let phone = cust.phone;
+    // Format nomor WA dari 08.. ke 628..
+    if (phone.startsWith('0')) { phone = '62' + phone.substring(1); }
+
+    // Membuat list riwayat singkat
+    let listHutang = db.transactions
+      .filter(t => t.cust_id === currentCustId && t.type === 'order')
+      .map(t => `- ${t.desc} (${rupiah(t.amount)})`)
+      .join('%0A');
+
+    let text = `Halo *${cust.name}*,%0A%0ABerikut adalah rincian tagihan Anda:%0A${listHutang}%0A%0A*Total Tagihan: ${rupiah(total)}*%0A%0AMohon segera diselesaikan. Terima kasih! 🙏`;
+    
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+  }
+
+  // ==========================================
+  // FITUR SINKRONISASI CLOUD BACKUP
+  // ==========================================
+  async function syncData() {
+    if (!navigator.onLine) return alert("Anda sedang offline. Butuh internet untuk sinkronisasi.");
+    
+    let btnSync = document.getElementById('syncStatus');
+    btnSync.textContent = "⏳ Menyinkronkan data ke Server...";
+    btnSync.style.background = "#94a3b8";
 
     try {
-      // Mengirim array data ke Google Sheets dengan metode POST
       let response = await fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(antreanData)
+        body: JSON.stringify(db) // Mengirim seluruh isi DB Lokal
       });
       
       let result = await response.json();
-      
       if (result.status === "success") {
-        // Hapus data lokal karena sudah masuk ke Google Sheets
-        localStorage.removeItem('antreanHutang');
-        alert("Sinkronisasi Berhasil!");
-        updateInfoAntrean();
+        btnSync.textContent = "✅ Backup Data Tersinkronisasi";
+        btnSync.style.background = "#10b981";
       } else {
-        alert("Gagal sinkronisasi: " + result.message);
+        throw new Error(result.message);
       }
     } catch (error) {
-      alert("Terjadi kesalahan jaringan saat sinkronisasi.");
+      btnSync.textContent = "❌ Gagal Sync. Klik untuk Coba Lagi";
+      btnSync.style.background = "#ef4444";
+      alert("Error: " + error.message);
     }
     
-    btn.textContent = "SINKRONKAN KE GOOGLE SHEETS 🔄";
+    setTimeout(() => {
+      btnSync.textContent = "☁️ Klik untuk Sinkronisasi ke Sheet";
+      btnSync.style.background = "#fbbf24";
+    }, 4000);
   }
 
-  updateStatus();
-  updateInfoAntrean();
+  // Inisialisasi
+  renderHome();
 </script>
 </body>
 </html>
