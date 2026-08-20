@@ -67,7 +67,7 @@
     <h2 id="headerTitle">Daftar Pelanggan</h2>
   </div>
   
-  <div class="status-bar" onclick="syncData()" id="syncStatus">☁️ Klik untuk Sinkronisasi ke Sheet</div>
+  <div class="status-bar" onclick="syncData()" id="syncStatus">☁️ Siap (Auto-Sync Aktif)</div>
 
   <!-- VIEW 1: DASHBOARD PELANGGAN -->
   <div id="view-home" class="view-section view-active">
@@ -156,6 +156,21 @@
   }
 
   // ==========================================
+  // PENDETEKSI KONEKSI OTOMATIS (AUTO-SYNC)
+  // ==========================================
+  window.addEventListener('online', function() {
+    let btnSync = document.getElementById('syncStatus');
+    btnSync.textContent = "🌐 Online terdeteksi, Menyinkronkan...";
+    syncData();
+  });
+
+  window.addEventListener('offline', function() {
+    let btnSync = document.getElementById('syncStatus');
+    btnSync.textContent = "📴 Offline (Data tersimpan di perangkat)";
+    btnSync.style.background = "#fee2e2";
+  });
+
+  // ==========================================
   // NAVIGASI & TAMPILAN
   // ==========================================
   function goHome() {
@@ -230,6 +245,9 @@
     document.getElementById('inpCustName').value = '';
     document.getElementById('inpCustPhone').value = '';
     renderHome();
+
+    // AUTO SYNC KETIKA ONLINE
+    if (navigator.onLine) { syncData(); }
   }
 
   // ==========================================
@@ -250,7 +268,9 @@
     let trxs = db.transactions.filter(t => t.cust_id === currentCustId).reverse();
     
     if(trxs.length === 0) {
+      list.html = '';
       list.innerHTML = '<div style="text-align:center; color:#64748b; margin-top:20px;">Belum ada riwayat transaksi.</div>';
+      return;
     }
 
     trxs.forEach(t => {
@@ -302,12 +322,10 @@
     if(!amount || !desc) return alert("Nominal dan Keterangan wajib diisi!");
 
     if (id) {
-      // Mode Edit
       let index = db.transactions.findIndex(t => t.id === id);
       db.transactions[index].amount = amount;
       db.transactions[index].desc = desc;
     } else {
-      // Mode Baru
       db.transactions.push({
         id: "TRX-" + Date.now(),
         cust_id: currentCustId,
@@ -321,6 +339,9 @@
     saveDB();
     closeModal('modalTrx');
     renderDetail();
+
+    // AUTO SYNC KETIKA ONLINE
+    if (navigator.onLine) { syncData(); }
   }
 
   function delTrx(id) {
@@ -328,6 +349,7 @@
       db.transactions = db.transactions.filter(t => t.id !== id);
       saveDB();
       renderDetail();
+      if (navigator.onLine) { syncData(); }
     }
   }
 
@@ -346,10 +368,8 @@
     if(total <= 0) return alert("Pelanggan ini tidak memiliki tagihan hutang.");
 
     let phone = cust.phone;
-    // Format nomor WA dari 08.. ke 628..
     if (phone.startsWith('0')) { phone = '62' + phone.substring(1); }
 
-    // Membuat list riwayat singkat
     let listHutang = db.transactions
       .filter(t => t.cust_id === currentCustId && t.type === 'order')
       .map(t => `- ${t.desc} (${rupiah(t.amount)})`)
@@ -361,43 +381,45 @@
   }
 
   // ==========================================
-  // FITUR SINKRONISASI CLOUD BACKUP
+  // FITUR SINKRONISASI CLOUD (OTOMATIS & MANUAL)
   // ==========================================
   async function syncData() {
-    if (!navigator.onLine) return alert("Anda sedang offline. Butuh internet untuk sinkronisasi.");
-    
     let btnSync = document.getElementById('syncStatus');
-    btnSync.textContent = "⏳ Menyinkronkan data ke Server...";
-    btnSync.style.background = "#94a3b8";
+    btnSync.textContent = "⏳ Sedang Sinkronisasi ke Sheet...";
+    btnSync.style.background = "#fbbf24";
 
     try {
       let response = await fetch(GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(db) // Mengirim seluruh isi DB Lokal
+        body: JSON.stringify(db)
       });
       
       let result = await response.json();
       if (result.status === "success") {
-        btnSync.textContent = "✅ Backup Data Tersinkronisasi";
+        btnSync.textContent = "✅ Sinkronisasi Berhasil (Tersimpan di Sheet)";
         btnSync.style.background = "#10b981";
+        setTimeout(() => {
+          btnSync.textContent = "☁️ Siap (Auto-Sync Aktif)";
+          btnSync.style.background = "#fbbf24";
+        }, 3000);
       } else {
         throw new Error(result.message);
       }
     } catch (error) {
       btnSync.textContent = "❌ Gagal Sync. Klik untuk Coba Lagi";
       btnSync.style.background = "#ef4444";
-      alert("Error: " + error.message);
     }
-    
-    setTimeout(() => {
-      btnSync.textContent = "☁️ Klik untuk Sinkronisasi ke Sheet";
-      btnSync.style.background = "#fbbf24";
-    }, 4000);
   }
 
-  // Inisialisasi
+  // Inisialisasi awal
   renderHome();
+  if (navigator.onLine) {
+    document.getElementById('syncStatus').textContent = "☁️ Siap (Auto-Sync Aktif)";
+  } else {
+    document.getElementById('syncStatus').textContent = "📴 Offline (Data tersimpan di perangkat)";
+    document.getElementById('syncStatus').style.background = "#fee2e2";
+  }
 </script>
 </body>
 </html>
