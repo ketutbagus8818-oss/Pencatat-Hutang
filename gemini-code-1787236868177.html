@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pencatat Hutang Offline</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body { font-family: -apple-system, sans-serif; background: #f0fdfc; padding: 16px; margin: 0; color: #0f4c47; }
+    .app-container { max-width: 480px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(18, 121, 115, 0.15); }
+    h2 { text-align: center; color: #127973; margin-top: 0; }
+    .form-group { margin-bottom: 12px; }
+    label { font-weight: bold; font-size: 14px; display: block; margin-bottom: 4px; }
+    input, textarea { width: 100%; padding: 10px; border: 2px solid #b2f2ed; border-radius: 10px; font-size: 16px; box-sizing: border-box; }
+    button { width: 100%; padding: 14px; font-size: 16px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+    .btn-simpan { background: #127973; color: white; }
+    .btn-sync { background: #fbbf24; color: #000; margin-top: 15px; }
+    .status-badge { text-align: center; padding: 8px; margin-top: 15px; border-radius: 8px; font-weight: bold; font-size: 14px; }
+    .status-offline { background: #fee2e2; color: #b91c1c; }
+    .status-online { background: #dcfce7; color: #15803d; }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <h2>Catat Hutang</h2>
+  
+  <div class="form-group">
+    <label>Nama Penghutang</label>
+    <input type="text" id="nama" placeholder="Contoh: Budi" required>
+  </div>
+  
+  <div class="form-group">
+    <label>Jumlah Hutang (Rp)</label>
+    <input type="number" id="jumlah" placeholder="Contoh: 50000" required>
+  </div>
+
+  <div class="form-group">
+    <label>Keterangan</label>
+    <textarea id="keterangan" rows="2" placeholder="Contoh: Pulsa Telkomsel 50k"></textarea>
+  </div>
+
+  <button class="btn-simpan" onclick="simpanData()">SIMPAN DATA</button>
+  
+  <div id="statusJaringan" class="status-badge status-online">Status: Online</div>
+  <div id="infoAntrean" style="text-align: center; font-size: 13px; margin-top: 10px; font-weight: bold; color: #e63946;">0 data menunggu sinkronisasi</div>
+  
+  <button class="btn-sync" onclick="sinkronisasiData()">SINKRONKAN KE GOOGLE SHEETS 🔄</button>
+</div>
+
+<script>
+  // GANTI URL INI DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA
+  const GAS_URL = "URL_GAS_ANDA_DISINI";
+
+  // Mendaftarkan Service Worker agar bisa diinstal & berjalan offline
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(() => console.log("Service Worker Terdaftar"));
+  }
+
+  // Pantau Status Jaringan
+  window.addEventListener('online', updateStatus);
+  window.addEventListener('offline', updateStatus);
+
+  function updateStatus() {
+    const statusEl = document.getElementById('statusJaringan');
+    if (navigator.onLine) {
+      statusEl.textContent = 'Status: Online';
+      statusEl.className = 'status-badge status-online';
+      updateInfoAntrean();
+    } else {
+      statusEl.textContent = 'Status: Offline (Data akan disimpan di HP)';
+      statusEl.className = 'status-badge status-offline';
+    }
+  }
+
+  // Menyimpan data secara lokal (Offline)
+  function simpanData() {
+    const nama = document.getElementById('nama').value;
+    const jumlah = document.getElementById('jumlah').value;
+    const keterangan = document.getElementById('keterangan').value;
+
+    if (!nama || !jumlah) return alert('Nama dan Jumlah wajib diisi!');
+
+    const dataBaru = {
+      id: "HUTANG-" + new Date().getTime(),
+      tanggal: new Date().toLocaleString('id-ID'),
+      nama: nama,
+      jumlah: jumlah,
+      keterangan: keterangan
+    };
+
+    let antreanData = JSON.parse(localStorage.getItem('antreanHutang')) || [];
+    antreanData.push(dataBaru);
+    localStorage.setItem('antreanHutang', JSON.stringify(antreanData));
+
+    // Kosongkan form
+    document.getElementById('nama').value = '';
+    document.getElementById('jumlah').value = '';
+    document.getElementById('keterangan').value = '';
+    
+    alert('Data berhasil disimpan secara lokal!');
+    updateInfoAntrean();
+  }
+
+  function updateInfoAntrean() {
+    let antreanData = JSON.parse(localStorage.getItem('antreanHutang')) || [];
+    document.getElementById('infoAntrean').textContent = `${antreanData.length} data menunggu sinkronisasi`;
+  }
+
+  // Mengirim data ke Google Sheets saat Online
+  async function sinkronisasiData() {
+    if (!navigator.onLine) {
+      alert("Anda sedang offline. Tunggu hingga koneksi internet kembali.");
+      return;
+    }
+
+    let antreanData = JSON.parse(localStorage.getItem('antreanHutang')) || [];
+    if (antreanData.length === 0) {
+      alert("Tidak ada data yang perlu disinkronisasi.");
+      return;
+    }
+
+    const btn = document.querySelector('.btn-sync');
+    btn.textContent = "MENGIRIM DATA...";
+
+    try {
+      // Mengirim array data ke Google Sheets dengan metode POST
+      let response = await fetch(GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(antreanData)
+      });
+      
+      let result = await response.json();
+      
+      if (result.status === "success") {
+        // Hapus data lokal karena sudah masuk ke Google Sheets
+        localStorage.removeItem('antreanHutang');
+        alert("Sinkronisasi Berhasil!");
+        updateInfoAntrean();
+      } else {
+        alert("Gagal sinkronisasi: " + result.message);
+      }
+    } catch (error) {
+      alert("Terjadi kesalahan jaringan saat sinkronisasi.");
+    }
+    
+    btn.textContent = "SINKRONKAN KE GOOGLE SHEETS 🔄";
+  }
+
+  updateStatus();
+  updateInfoAntrean();
+</script>
+</body>
+</html>

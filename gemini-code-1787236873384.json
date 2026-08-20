@@ -1,0 +1,20 @@
+{
+  "name": "Catatan Hutang DOPU",
+  "short_name": "Hutang",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#127973",
+  "icons": [
+    {
+      "src": "https://via.placeholder.com/192/127973/FFFFFF?text=HUTANG",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512/127973/FFFFFF?text=HUTANG",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
